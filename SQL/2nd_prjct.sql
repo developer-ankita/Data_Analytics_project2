@@ -1,11 +1,14 @@
 CREATE  DATABASE school_db2;
+
 USE school_db2;
+
 CREATE TABLE teachers (
 id INT PRIMARY KEY AUTO_INCREMENT,
 name VARCHAR (30) NOT NULL,
 email VARCHAR(50) UNIQUE,
 subject VARCHAR(30) DEFAULT 'Math',
 salary  INT);
+
 INSERT INTO teachers (name, email, subject, salary)
 VALUES
 ('Sahil', 'sahil123@gmail.com', 'English', 20000),
