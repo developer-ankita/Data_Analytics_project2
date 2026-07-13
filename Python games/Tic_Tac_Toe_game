@@ -1,0 +1,332 @@
+# Tic Tac Toe Game
+
+# ============================================================
+# Tic Tac Toe Game - Playable in Google Colab
+# Player: X
+# Computer: O
+# Difficulty: Easy / Medium / Hard
+# ============================================================
+
+import random
+import ipywidgets as widgets
+from IPython.display import display, HTML, clear_output
+
+class TicTacToeGame:
+    def __init__(self):
+        self.board = [""] * 9
+        self.player = "X"
+        self.computer = "O"
+        self.game_over = False
+        self.player_score = 0
+        self.computer_score = 0
+        self.draw_score = 0
+
+        self.status_output = widgets.Output()
+        self.board_output = widgets.Output()
+
+        self.difficulty = widgets.Dropdown(
+            options=["Easy", "Medium", "Hard"],
+            value="Hard",
+            description="Difficulty:",
+            style={"description_width": "initial"}
+        )
+
+        self.reset_button = widgets.Button(
+            description="🔄 New Game",
+            button_style="success",
+            layout=widgets.Layout(width="140px", height="38px")
+        )
+        self.reset_button.on_click(lambda b: self.reset_game())
+
+        self.cells = []
+        for i in range(9):
+            btn = widgets.Button(
+                description="",
+                layout=widgets.Layout(width="90px", height="90px"),
+                style={"font_weight": "bold", "font_size": "28px"}
+            )
+            btn.on_click(lambda b, index=i: self.player_move(index))
+            self.cells.append(btn)
+
+        self.render()
+
+    def render(self):
+        clear_output(wait=True)
+
+        display(HTML("""
+        <div style="
+            max-width: 520px;
+            padding: 22px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+        ">
+            <h1 style="margin: 0; font-size: 32px;">🎮 Tic Tac Toe</h1>
+            <p style="margin-top: 8px; color: #cbd5e1;">
+                You are <b style="color:#38bdf8;">X</b>. Computer is <b style="color:#f87171;">O</b>.
+                Choose a difficulty and start playing.
+            </p>
+        </div>
+        """))
+
+        display(widgets.HBox([self.difficulty, self.reset_button]))
+
+        self.update_status()
+
+        grid = widgets.GridBox(
+            self.cells,
+            layout=widgets.Layout(
+                grid_template_columns="repeat(3, 90px)",
+                grid_template_rows="repeat(3, 90px)",
+                grid_gap="8px",
+                justify_content="center",
+                margin="20px 0"
+            )
+        )
+
+        display(grid)
+
+    def update_status(self, message="Your turn. Choose a box."):
+        score_html = f"""
+        <div style="
+            max-width: 520px;
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 18px;
+            background: #f8fafc;
+            color: #0f172a;
+            font-family: Arial, sans-serif;
+            border: 1px solid #e2e8f0;
+        ">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="padding:10px 14px; border-radius:14px; background:#e0f2fe;">
+                    👤 Player: <b>{self.player_score}</b>
+                </div>
+                <div style="padding:10px 14px; border-radius:14px; background:#fee2e2;">
+                    🤖 Computer: <b>{self.computer_score}</b>
+                </div>
+                <div style="padding:10px 14px; border-radius:14px; background:#fef3c7;">
+                    🤝 Draw: <b>{self.draw_score}</b>
+                </div>
+            </div>
+            <h3 style="margin-bottom:0;">{message}</h3>
+        </div>
+        """
+        display(HTML(score_html))
+
+    def player_move(self, index):
+        if self.game_over:
+            return
+
+        if self.board[index] != "":
+            return
+
+        self.board[index] = self.player
+        self.update_cell(index)
+
+        winner = self.check_winner()
+
+        if winner:
+            self.end_game(winner)
+            return
+
+        self.computer_move()
+
+    def computer_move(self):
+        if self.game_over:
+            return
+
+        difficulty = self.difficulty.value
+
+        if difficulty == "Easy":
+            move = self.random_move()
+
+        elif difficulty == "Medium":
+            move = self.medium_move()
+
+        else:
+            move = self.best_move()
+
+        if move is not None:
+            self.board[move] = self.computer
+            self.update_cell(move)
+
+        winner = self.check_winner()
+
+        if winner:
+            self.end_game(winner)
+
+    def random_move(self):
+        empty_cells = [i for i, value in enumerate(self.board) if value == ""]
+        return random.choice(empty_cells) if empty_cells else None
+
+    def medium_move(self):
+        # Try to win first
+        for i in range(9):
+            if self.board[i] == "":
+                self.board[i] = self.computer
+                if self.check_winner() == self.computer:
+                    self.board[i] = ""
+                    return i
+                self.board[i] = ""
+
+        # Block player win
+        for i in range(9):
+            if self.board[i] == "":
+                self.board[i] = self.player
+                if self.check_winner() == self.player:
+                    self.board[i] = ""
+                    return i
+                self.board[i] = ""
+
+        return self.random_move()
+
+    def best_move(self):
+        best_score = -999
+        move = None
+
+        for i in range(9):
+            if self.board[i] == "":
+                self.board[i] = self.computer
+                score = self.minimax(False)
+                self.board[i] = ""
+
+                if score > best_score:
+                    best_score = score
+                    move = i
+
+        return move
+
+    def minimax(self, is_computer_turn):
+        winner = self.check_winner()
+
+        if winner == self.computer:
+            return 1
+        elif winner == self.player:
+            return -1
+        elif winner == "Draw":
+            return 0
+
+        if is_computer_turn:
+            best_score = -999
+
+            for i in range(9):
+                if self.board[i] == "":
+                    self.board[i] = self.computer
+                    score = self.minimax(False)
+                    self.board[i] = ""
+                    best_score = max(best_score, score)
+
+            return best_score
+
+        else:
+            best_score = 999
+
+            for i in range(9):
+                if self.board[i] == "":
+                    self.board[i] = self.player
+                    score = self.minimax(True)
+                    self.board[i] = ""
+                    best_score = min(best_score, score)
+
+            return best_score
+
+    def check_winner(self):
+        winning_patterns = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6]
+        ]
+
+        for pattern in winning_patterns:
+            a, b, c = pattern
+            if self.board[a] == self.board[b] == self.board[c] and self.board[a] != "":
+                return self.board[a]
+
+        if "" not in self.board:
+            return "Draw"
+
+        return None
+
+    def update_cell(self, index):
+        value = self.board[index]
+        self.cells[index].description = value
+
+        if value == self.player:
+            self.cells[index].button_style = "info"
+        elif value == self.computer:
+            self.cells[index].button_style = "danger"
+
+    def end_game(self, winner):
+        self.game_over = True
+
+        for btn in self.cells:
+            btn.disabled = True
+
+        clear_output(wait=True)
+
+        if winner == self.player:
+            self.player_score += 1
+            message = "🎉 You won! Excellent move."
+        elif winner == self.computer:
+            self.computer_score += 1
+            message = "🤖 Computer won! Try again."
+        else:
+            self.draw_score += 1
+            message = "🤝 It is a draw."
+
+        self.render_board_after_game(message)
+
+    def render_board_after_game(self, message):
+        display(HTML("""
+        <div style="
+            max-width: 520px;
+            padding: 22px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+        ">
+            <h1 style="margin: 0; font-size: 32px;">🎮 Tic Tac Toe</h1>
+        </div>
+        """))
+
+        display(widgets.HBox([self.difficulty, self.reset_button]))
+
+        self.update_status(message)
+
+        grid = widgets.GridBox(
+            self.cells,
+            layout=widgets.Layout(
+                grid_template_columns="repeat(3, 90px)",
+                grid_template_rows="repeat(3, 90px)",
+                grid_gap="8px",
+                justify_content="center",
+                margin="20px 0"
+            )
+        )
+
+        display(grid)
+
+    def reset_game(self):
+        self.board = [""] * 9
+        self.game_over = False
+
+        for btn in self.cells:
+            btn.description = ""
+            btn.disabled = False
+            btn.button_style = ""
+
+        self.render()
+
+
+# Start the game
+game = TicTacToeGame()
