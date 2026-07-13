@@ -1,0 +1,225 @@
+# Dungeon Treasure Escape
+# Controls: Use buttons to move around the dungeon.
+# Goal: Find the key, collect treasure, and escape through the exit.
+
+
+import random
+import ipywidgets as widgets
+from IPython.display import display, HTML, clear_output
+
+class DungeonGame:
+    def __init__(self, size=8):
+        self.size = size
+        self.new_game()
+
+    def new_game(self):
+        self.player = [0, 0]
+        self.hp = 100
+        self.gold = 0
+        self.has_key = False
+        self.steps = 0
+        self.game_over = False
+        self.message = "Welcome, adventurer! Find the key, collect gold, and escape."
+
+        self.exit_pos = [self.size - 1, self.size - 1]
+        self.key_pos = self.random_empty_position()
+
+        self.monsters = [self.random_empty_position() for _ in range(7)]
+        self.traps = [self.random_empty_position() for _ in range(8)]
+        self.potions = [self.random_empty_position() for _ in range(5)]
+        self.gold_positions = [self.random_empty_position() for _ in range(10)]
+
+        self.create_buttons()
+        self.render()
+
+    def random_empty_position(self):
+        while True:
+            pos = [random.randint(0, self.size - 1), random.randint(0, self.size - 1)]
+            if pos != [0, 0] and pos != self.exit_pos:
+                return pos
+
+    def create_buttons(self):
+        self.up_btn = widgets.Button(description="⬆️ Up", button_style="info")
+        self.down_btn = widgets.Button(description="⬇️ Down", button_style="info")
+        self.left_btn = widgets.Button(description="⬅️ Left", button_style="info")
+        self.right_btn = widgets.Button(description="➡️ Right", button_style="info")
+        self.restart_btn = widgets.Button(description="🔄 New Game", button_style="success")
+
+        self.up_btn.on_click(lambda b: self.move(-1, 0))
+        self.down_btn.on_click(lambda b: self.move(1, 0))
+        self.left_btn.on_click(lambda b: self.move(0, -1))
+        self.right_btn.on_click(lambda b: self.move(0, 1))
+        self.restart_btn.on_click(lambda b: self.new_game())
+
+    def move(self, dx, dy):
+        if self.game_over:
+            self.message = "Game is over. Click New Game to play again."
+            self.render()
+            return
+
+        new_x = self.player[0] + dx
+        new_y = self.player[1] + dy
+
+        if not (0 <= new_x < self.size and 0 <= new_y < self.size):
+            self.message = "You hit a wall. Choose another direction."
+            self.render()
+            return
+
+        self.player = [new_x, new_y]
+        self.steps += 1
+        self.check_tile()
+        self.render()
+
+    def check_tile(self):
+        pos = self.player
+
+        if pos in self.monsters:
+            damage = random.randint(12, 25)
+            self.hp -= damage
+            self.monsters.remove(pos)
+            self.message = f"👹 A monster attacked you! You lost {damage} HP."
+
+        elif pos in self.traps:
+            damage = random.randint(8, 18)
+            self.hp -= damage
+            self.traps.remove(pos)
+            self.message = f"🪤 You stepped on a trap! You lost {damage} HP."
+
+        elif pos in self.potions:
+            heal = random.randint(15, 30)
+            self.hp = min(100, self.hp + heal)
+            self.potions.remove(pos)
+            self.message = f"🧪 You found a potion! Restored {heal} HP."
+
+        elif pos in self.gold_positions:
+            amount = random.randint(10, 50)
+            self.gold += amount
+            self.gold_positions.remove(pos)
+            self.message = f"🪙 You collected {amount} gold."
+
+        elif pos == self.key_pos and not self.has_key:
+            self.has_key = True
+            self.message = "🗝️ You found the key! Now go to the exit."
+
+        elif pos == self.exit_pos:
+            if self.has_key:
+                self.message = f"🏆 You escaped with {self.gold} gold in {self.steps} steps!"
+                self.game_over = True
+            else:
+                self.message = "🚪 This is the exit, but you need the key first."
+
+        else:
+            self.message = random.choice([
+                "The dungeon is quiet...",
+                "You hear something moving nearby.",
+                "Keep exploring.",
+                "A cold wind passes through the dungeon.",
+                "You see old marks on the wall."
+            ])
+
+        if self.hp <= 0:
+            self.hp = 0
+            self.message = f"💀 You died in the dungeon. Final gold: {self.gold}."
+            self.game_over = True
+
+    def get_tile_icon(self, x, y):
+        pos = [x, y]
+
+        if pos == self.player:
+            return "🧍"
+        elif pos == self.exit_pos:
+            return "🚪"
+        elif self.game_over and pos in self.monsters:
+            return "👹"
+        elif self.game_over and pos in self.traps:
+            return "🪤"
+        elif self.game_over and pos in self.potions:
+            return "🧪"
+        elif self.game_over and pos in self.gold_positions:
+            return "🪙"
+        elif self.game_over and pos == self.key_pos and not self.has_key:
+            return "🗝️"
+        else:
+            return "⬛"
+
+    def render_board(self):
+        board_html = """
+        <style>
+            .game-board {
+                display: grid;
+                grid-template-columns: repeat(8, 48px);
+                gap: 5px;
+                margin: 15px 0;
+            }
+            .tile {
+                width: 48px;
+                height: 48px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #1f2937;
+                border-radius: 8px;
+                font-size: 26px;
+                border: 1px solid #374151;
+            }
+            .stats {
+                background: #111827;
+                color: white;
+                padding: 14px;
+                border-radius: 10px;
+                width: fit-content;
+                font-family: Arial;
+                margin-bottom: 10px;
+            }
+            .message {
+                background: #fef3c7;
+                color: #78350f;
+                padding: 12px;
+                border-radius: 10px;
+                font-weight: bold;
+                width: fit-content;
+                margin-bottom: 10px;
+            }
+        </style>
+        """
+
+        board_html += "<div class='game-board'>"
+        for x in range(self.size):
+            for y in range(self.size):
+                board_html += f"<div class='tile'>{self.get_tile_icon(x, y)}</div>"
+        board_html += "</div>"
+
+        return board_html
+
+    def render(self):
+        clear_output(wait=True)
+
+        key_status = "Yes" if self.has_key else "No"
+        status_html = f"""
+        <h2>🎮 Dungeon Treasure Escape</h2>
+        <div class="stats">
+            ❤️ HP: {self.hp} &nbsp; | &nbsp;
+            🪙 Gold: {self.gold} &nbsp; | &nbsp;
+            🗝️ Key: {key_status} &nbsp; | &nbsp;
+            👣 Steps: {self.steps}
+        </div>
+        <div class="message">{self.message}</div>
+        """
+
+        display(HTML(status_html + self.render_board()))
+
+        controls = widgets.VBox([
+            widgets.HBox([widgets.Label(""), self.up_btn, widgets.Label("")]),
+            widgets.HBox([self.left_btn, self.down_btn, self.right_btn]),
+            widgets.HBox([self.restart_btn])
+        ])
+
+        display(controls)
+
+        if self.game_over:
+            display(HTML("""
+            <p><b>Tip:</b> After game over, hidden monsters, traps, potions, gold, and key locations are revealed on the board.</p>
+            """))
+
+# Start game
+game = DungeonGame()
